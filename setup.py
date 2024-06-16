@@ -9,21 +9,21 @@ install_requires = [
     "pandas",
     "numpy",
     "pyarrow",
-    "genson",
+    "pydantic",
+    "croniter",
 ]
-
 dev_requires = [
-    "coverage",
     "mypy",
+    "coverage",
+    "types-croniter",
     "wheel",
     "twine",
     "black",
     "isort",
-    "pytest",
+    "pytest<=8.0.0",
     "pytest-mypy",
     "pytest-cov",
 ]
-
 
 
 def read_file(f):
@@ -53,7 +53,7 @@ setup(
     author_email="wg@walnutgeek.com",
     license="Apache 2.0",
     packages=find_packages(exclude=("*.tests",)),
-    package_data={"files": ["mime_infos.json"]},
+    # package_data={"files": ["mime_infos.json"]},
     entry_points={"console_scripts": ["c3=x2.c3.cli:main"]},
     install_requires=install_requires,
     extras_require={"dev": dev_requires},

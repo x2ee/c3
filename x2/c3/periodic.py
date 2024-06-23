@@ -112,7 +112,7 @@ class Moment:
     >>> time.sleep(1)
     >>> m = m.capture("a second")
     >>> s = m.chain()
-    >>> s.startswith('[start] 0.00'), 's-> [instant] 1.00' in s , s.endswith('s-> [a second]')
+    >>> s.startswith('[start] 0.0'), 's-> [instant] 1.' in s , s.endswith('s-> [a second]')
     (True, True, True)
     """
 

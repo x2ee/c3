@@ -36,6 +36,9 @@ class GlobalRef:
     >>> uref = GlobalRef('x2.c3')
     >>> uref.is_module()
     True
+    >>> uref = GlobalRef(uref)
+    >>> uref.is_module()
+    True
     >>> uref.get_module().__name__
     'x2.c3'
     >>> uref = GlobalRef(uref.get_module())
@@ -97,21 +100,6 @@ class GlobalRef:
 
 
 class Logic:
-    @staticmethod
-    def build_instance(config: Dict[str, Any], default_ref:Union[str,GlobalRef]=None) -> Any:
-        try:
-            config = dict(config)
-            ref = GlobalRef(
-                config.pop("ref$", default_ref)
-                if default_ref is not None
-                else config.pop("ref$")
-            )
-            assert ref.is_class()
-            cls = ref.get_instance()
-            return cls(config)
-        except:
-            log.error(f"Error in {config}")
-            raise
 
     def __init__(self, config: Dict[str, Any], default_ref:Union[str,GlobalRef]=None) -> None:
         config = dict(config)
@@ -132,4 +120,3 @@ class Logic:
         except:
             log.error(f"Error in {config}")
             raise
-

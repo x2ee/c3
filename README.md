@@ -1,6 +1,8 @@
 # c3
 c3 (compute, cache, cron)
 
+[![Build Status](https://dev.azure.com/sekash/Public/_apis/build/status%2Fx2ee.c3?branchName=main)](https://dev.azure.com/sekash/Public/_build/latest?definitionId=8&branchName=main)
+
 ## Developer setup
 
 Create environment. That step could be done with conda or venv.

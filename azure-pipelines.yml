@@ -4,7 +4,7 @@ trigger:
 jobs:
   - template: azure-pybuild.yml
     parameters:
-      name: WinLatest
+      name: Win
       vmImage: 'windows-latest'
 
   - template: azure-pybuild.yml
@@ -25,7 +25,7 @@ jobs:
 
   - job: Check
     dependsOn:
-      - WinCo
+      - Win2019
       - Win
       - macOS
       - Linux

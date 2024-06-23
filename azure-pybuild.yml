@@ -8,10 +8,12 @@ jobs:
       vmImage: ${{ parameters.vmImage }}
     strategy:
       matrix:
-        Python36:
+        p36:
           python.version: '3.6'
-        Python39:
-          python.version: '3.9'
+        py310:
+          python.version: '3.10'
+        py312:
+          python.version: '3.12'
       maxParallel: 2
     steps:
       - task: UsePythonVersion@0
@@ -21,8 +23,7 @@ jobs:
       - script: |
           python -V
           pip install -e .[dev]
+          pip freeze
         name: requirements
-      - script: python setup.py sdist
-        name: sdist
-      - script: python scent.py test current
+      - script: pytest
         name: test

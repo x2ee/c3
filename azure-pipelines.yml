@@ -4,23 +4,23 @@ trigger:
 jobs:
   - template: azure-pybuild.yml
     parameters:
-      name: Win
-      vmImage: 'vs2017-win2016'
+      name: WinLatest
+      vmImage: 'windows-latest'
 
   - template: azure-pybuild.yml
     parameters:
-      name: WinCo
+      name: Win2019
       vmImage: 'windows-2019'
 
   - template: azure-pybuild.yml
     parameters:
       name: macOS
-      vmImage: 'macOS-10.14'
+      vmImage: 'macOS-latest'
 
   - template: azure-pybuild.yml
     parameters:
       name: Linux
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-latest'
 
 
   - job: Check

@@ -30,7 +30,7 @@ jobs:
       - macOS
       - Linux
     pool:
-      vmImage: 'ubuntu-lastest'
+      vmImage: 'ubuntu-latest'
     steps:
       - task: UsePythonVersion@0
         inputs:

@@ -1,4 +1,6 @@
+from contextvars import ContextVar
 from inspect import isclass, isfunction, ismodule, iscoroutinefunction
+import sys
 from types import ModuleType
 from typing import Any, Dict, Optional, Union
 
@@ -110,13 +112,19 @@ class Logic:
                 ref = GlobalRef(config.pop("ref$"))
             self.async_call = ref.is_async()
             if ref.is_function():
+                self.instance = None
                 self.call = ref.get_instance()
                 assert config == {}, f"Unexpected entries {config}"
             elif ref.is_class():
                 cls = ref.get_instance()
-                self.call = cls(config)
+                self.call = self.instance = cls(config)
             else:
                 raise AssertionError(f"Invalid logic {ref} in config {config}")
         except:
             log.error(f"Error in {config}")
             raise
+
+def get_module(name:str)->ModuleType:
+    if name in sys.modules:
+        return sys.modules[name]
+    return __import__(name, fromlist=[""])

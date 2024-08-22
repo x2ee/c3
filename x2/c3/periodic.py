@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 import sys
-import time
+import time as tt
 from typing import Any, Callable
 
 import logging
@@ -16,13 +16,70 @@ from typing import Union
 
 YEAR_IN_DAYS = 365.256
 
-
-def stamp_time()->datetime:
+def stamp_time() -> datetime:
     """return the current time in UTC
     >>> stamp_time().tzinfo
     datetime.timezone.utc
     """
     return datetime.now(timezone.utc)
+
+
+class SimulatedTime:
+    """
+    >>> st = SimulatedTime()
+    >>> st.get_datetime().tzinfo
+    datetime.timezone.utc
+    >>> cmp = lambda ss: abs((st.get_datetime()-stamp_time()).total_seconds()-ss) < 1e-3
+    >>> cmp(0)
+    True
+    >>> st.set_offset(timedelta(days=1))
+    >>> cmp(86400)
+    True
+    >>> st.set_offset(timedelta(days=1).total_seconds())
+    >>> cmp(86400)
+    True
+    >>> st.set_now(stamp_time() + timedelta(days=1))
+    >>> cmp(86400)
+    True
+    >>> st.set_now( (stamp_time() - timedelta(days=1)).timestamp() )
+    >>> cmp(-86400)
+    True
+    >>> st.is_real_time()
+    False
+    >>> st.reset()
+    >>> st.is_real_time()
+    True
+    """
+    def __init__(self, offset: float=0.) -> None:
+        self.offset = offset
+
+    def time(self):
+        return tt.time() + self.offset
+
+    def set_offset(self, offset: Union[timedelta,float]):
+        if isinstance(offset, timedelta):
+            self.offset = offset.total_seconds()
+        else:
+            self.offset = offset
+
+    def set_now(self, dt: Union[datetime,float]):
+        if isinstance(dt, datetime):
+            epoch = dt.timestamp()
+        else:
+            epoch = dt
+        self.offset = epoch - tt.time()
+
+    def reset(self):
+        self.offset = 0.
+
+    def is_real_time(self):
+        return self.offset == 0.
+
+    def get_datetime(self)->datetime:
+        return datetime.fromtimestamp(self.time(), tz=timezone.utc)
+
+
+stime: SimulatedTime = SimulatedTime()
 
 
 class IntervalUnit(Enum):
@@ -109,7 +166,7 @@ class Moment:
     """
     >>> m = Moment.start()
     >>> m = m.capture("instant")
-    >>> time.sleep(1)
+    >>> tt.sleep(1)
     >>> m = m.capture("a second")
     >>> s = m.chain()
     >>> s.startswith('[start] 0.0'), 's-> [instant] 1.' in s , s.endswith('s-> [a second]')
@@ -121,7 +178,7 @@ class Moment:
     prev: "Moment"
 
     def __init__(self, name: str, prev: "Moment" = None) -> None:
-        self.time = time.time()
+        self.time = tt.time()
         self.name = name
         self.prev = prev
 
@@ -159,7 +216,7 @@ class PeriodicTask:
         self.logic = logic
 
     def is_due(self):
-        return self.last_run is None or time.time() - self.last_run > self.freq
+        return self.last_run is None or stime.time() - self.last_run > self.freq
 
 
 def gcd_pair(a, b):
@@ -171,7 +228,7 @@ def gcd_pair(a, b):
     >>> gcd_pair(6,35)
     1
     """
-    return abs(a) if b == 0 else gcd(b, a % b)
+    return abs(a) if b == 0 else gcd_pair(b, a % b)
 
 
 def gcd(*nn):
@@ -211,7 +268,7 @@ async def run_all(*tasks: PeriodicTask, shutdown_event=None, collect_results:Cal
     tick = gcd(*[t.freq for t in tasks])
     loop = asyncio.get_running_loop()
     while shutdown_event.is_set() is False:
-        start = time.time()
+        start = stime.time()
         for t in tasks:
             if t.is_due():
                 t.last_run = start
@@ -224,7 +281,7 @@ async def run_all(*tasks: PeriodicTask, shutdown_event=None, collect_results:Cal
                 except :
                     r = sys.exc_info()
                 collect_results(t.logic.__name__, r)
-        elapsed = time.time() - start
+        elapsed = stime.time() - start
         await asyncio.sleep(tick - elapsed if elapsed < tick else 0)
 
 

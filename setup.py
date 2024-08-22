@@ -1,5 +1,3 @@
-import platform
-
 from setuptools import find_packages, setup
 
 
@@ -11,6 +9,7 @@ install_requires = [
     "pyarrow",
     "pydantic",
     "croniter",
+    "tornado"
 ]
 dev_requires = [
     "mypy",

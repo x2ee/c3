@@ -1,0 +1,102 @@
+{
+    "dnodes" : {
+        "":{
+            "defaults": {
+                "cache" : {
+                    "ref$" : "x2.c3.db:TimedCache",
+                    "expire": "1d",
+                    "on_expire": "purge"
+                },
+                "state": {
+                    "ref$": "x2.c3.db:AsOfState",
+                    "dbm_key": "dnodes"
+                },
+                "compute": {
+                    "ref$": "x2.c3.dnode:DnCompute",
+                    "args": [],
+                    "runner_table": "runs:compute"
+                },
+                "cron": {
+                    "ref$": "x2.c3.dnode:DnCron",
+                    "runner_table": "runs:cron",
+                    "tasks": [
+                        {
+                            "name": "clean_cache",
+                            "schedule": "@daily",
+                            "logic": {
+                                "ref$": "x2.c3.db:cron_clean_cache"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "n/c/s1" : {
+            "compute" : {
+                "logic": {
+                    "ref$": "x2.c3.tests:S1"
+                },
+                "args" : [
+                    {"name" : "n", "type" : "int"}
+                ]
+            },
+            "cache" : {
+                "ref$": "x2.c3.db:TimedCache",
+                "expire": "1w", 
+                "on_expire" : "keep"
+            }
+        },
+        "n/c/a1": {
+            "compute": {
+                "logic": {
+                    "ref$": "x2.c3.tests:A1"
+                },
+                "args": [
+                    {
+                        "name": "prefix",
+                        "type": "str"
+                    },
+                    {
+                        "name": "n",
+                        "type": "int"
+                    }
+                ]
+            },
+            "cache": {
+                "ref$": "x2.c3.db:TimedCache",
+                "expire": "1d",
+                "on_expire": "purge"
+            }
+        },
+        "n/f/s2" :{
+            "compute": {
+                "logic": {
+                    "ref$": "x2.c3.tests:s2"
+                },
+                "args": [
+                    {
+                        "name": "prefix",
+                        "type": "str"
+                    },
+                    {
+                        "name": "n",
+                        "type": "int"
+                    }
+                ]
+            }
+        },
+        "n/f/a2" :{
+            "compute": {
+                "logic": {
+                    "ref$": "x2.c3.tests:a2"
+                },
+                "args": [
+                    {
+                        "name": "n",
+                        "type": "int"
+                    }
+                ]
+            }
+        }
+    }
+}

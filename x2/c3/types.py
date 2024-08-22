@@ -37,15 +37,16 @@ json_dumps = lambda j: _json.dumps(j, cls=NumpyEncoder)
 
 def from_json(json_obj: Any) -> Any:
     """ 
-    resolve type_ref$ in the nested json object"""
+    resolve type_ref$ in the nested json object
+    """
     if isinstance(json_obj, dict):
-        json_dict = json_obj.copy()
         if "type_ref$" in json_obj:
+            json_dict = json_obj.copy()
             type_ref = GlobalRef(json_dict.pop("type_ref$"))
             type_ = type_ref.get_instance()
             return convert_to_type(json_dict, type_)
         else:
-            return {k: from_json(v) for k, v in json_dict.items()}
+            return {k: from_json(v) for k, v in json_obj.items()}
     elif isinstance(json_obj, (tuple,list)):
         return [from_json(v) for v in json_obj]
     else:

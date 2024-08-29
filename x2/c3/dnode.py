@@ -6,7 +6,7 @@ from typing import Any, Dict, Generator, List, Optional, Tuple, Union, cast
 from x2.c3 import Logic
 from x2.c3.types import ArgField
 from x2.c3.dpath import DataPath 
-from x2.c3.event import DnEvent
+from x2.c3.event import CacheParams, DnEvent
 from x2.c3.periodic import Interval, stamp_time, adjust_as_of_date
 import pandas as pd
 
@@ -218,8 +218,7 @@ class DataNode(DNode):
             self.path,
             key_values,
             as_of_date,
-            interval=interval,
-            force=force,
+            cache_params=CacheParams(force=force, interval=interval),
             arg_fields=self.arg_fields(),
         )
         if self.cache is None:

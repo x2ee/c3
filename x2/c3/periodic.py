@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import sys
 import time as tt
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import logging
 log = logging.getLogger(__name__)
@@ -115,6 +115,15 @@ class Interval:
         self.multiplier = multiplier
         self.period = period
 
+
+    @classmethod
+    def from_string_safe(cls, s: Union["Interval",str,None]) -> Optional["Interval"]:
+        if s is None:
+            return None
+        if isinstance(s, Interval):
+            return s
+        return cls.from_string(s)
+
     @classmethod
     def from_string(cls, s: str) -> "Interval":
         m = cls.matcher(s)
@@ -156,6 +165,12 @@ class Interval:
                 else:
                     break
         return None
+    
+    def __str__(self) -> str:
+        return f"{self.multiplier}{self.period}"
+    
+    def __repr__(self) -> str:
+        return f'Interval({self.multiplier}, {self.period!r})'
 
 
 def date_from_name(s):

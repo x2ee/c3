@@ -290,6 +290,8 @@ def cron_clean_cache(path:DataPath, task:str, trigger_time:datetime):
     dn = ctx.config.get().dn(path)
     if dn.cache is not None:
         log.info(f"Cleaning cache path={path}, task={task}, trigger_time={trigger_time}")
+        #TODO implement cache cleaning
+
 
 class TimedCache(DnCache):
     def __init__(self, config:Dict[str,Any]):
@@ -299,15 +301,15 @@ class TimedCache(DnCache):
         assert config == {}, f"Unexpected entries {config}"
 
     def get(self, dne:DnEvent) -> Any:
-        interval = self.expire if dne.interval is None else dne.interval
+        cache_params = dne.get_cache_params(self.expire)
         text = None
-        recompute = dne.force
+        recompute = cache_params.force
         if not recompute:
-            up_to_date, text =  self.node.state.read(dne.as_of_date, interval, *dne.typed_values)
+            up_to_date, text =  self.node.state.read(dne.as_of_date, cache_params.get_interval(), *dne.typed_values)
             recompute = not(up_to_date)
         if recompute:
             self.compute_and_update_cache(dne)
-            up_to_date, text = self.node.state.read(dne.as_of_date, interval, *dne.typed_values)
+            up_to_date, text = self.node.state.read(dne.as_of_date, cache_params.get_interval(), *dne.typed_values)
             assert up_to_date
         return from_json(json_loads(text))
 

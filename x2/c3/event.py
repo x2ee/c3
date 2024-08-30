@@ -1,38 +1,16 @@
 import base64
 from datetime import date, datetime
 from typing import Any, List, Optional, Tuple, Union, cast
-from typing_extensions import Annotated
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PlainSerializer, WithJsonSchema
+from pydantic import ConfigDict, Field
 import uuid
+from x2.c3 import JsonBase
 from x2.c3.dpath import DataPath
 from x2.c3.types import ArgField
-from x2.c3.periodic import Interval, Moment, stamp_time, adjust_as_of_date
+from x2.c3.periodic import Interval, IntervalSafe, Moment, stamp_time, adjust_as_of_date
 
 import logging
 log = logging.getLogger(__name__)
 
-class JsonBase(BaseModel):
-
-    @classmethod
-    def from_json(cls, json_str):
-        return cls.model_validate_json(json_str)
-    
-    @classmethod
-    def from_base64(cls, base64_str):
-        return cls.from_json(base64.b64decode(base64_str).decode())
-    
-    def to_base64(self)->bytes:
-        return base64.b64encode(self.model_dump_json().encode('utf8'))
-         
-def str_or_none(s:Any)->Optional[str]:
-    return str(s) if s is not None else None
-
-IntervalSafe = Annotated[
-    Union[Interval,str,None],
-    BeforeValidator(Interval.from_string_safe),
-    PlainSerializer(str_or_none, return_type=str),
-    WithJsonSchema({"anyOf": [{"type": "string"}, {"type": "null"}]}),
-]
 
 class CacheParams(JsonBase):
     model_config = ConfigDict(arbitrary_types_allowed=True, title="Cache expiration parameters")
@@ -42,7 +20,6 @@ class CacheParams(JsonBase):
 
     def get_interval(self)->Optional[Interval]:
         return cast(Interval, self.interval)
-
 
     
 class DnEvent:

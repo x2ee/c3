@@ -5,6 +5,10 @@ import time as tt
 from typing import Any, Callable, Optional
 
 import logging
+from pydantic import BeforeValidator, PlainSerializer, WithJsonSchema
+from typing_extensions import Annotated
+
+from x2.c3 import str_or_none
 log = logging.getLogger(__name__)
 
 from datetime import datetime, timedelta, date, timezone
@@ -172,6 +176,12 @@ class Interval:
     def __repr__(self) -> str:
         return f'Interval({self.multiplier}, {self.period!r})'
 
+IntervalSafe = Annotated[
+    Union[Interval,str,None],
+    BeforeValidator(Interval.from_string_safe),
+    PlainSerializer(str_or_none, return_type=str),
+    WithJsonSchema({"anyOf": [{"type": "string"}, {"type": "null"}]}),
+]
 
 def date_from_name(s):
     return date(int(s[:4]), int(s[4:6]), int(s[6:8]))

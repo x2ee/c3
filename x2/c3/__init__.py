@@ -1,10 +1,13 @@
-from contextvars import ContextVar
+import base64
 from inspect import isclass, isfunction, ismodule, iscoroutinefunction
 import sys
 from types import ModuleType
 from typing import Any, Dict, Optional, Union
 
 import logging
+
+from pydantic import BaseModel
+
 log = logging.getLogger(__name__)
 
 
@@ -124,7 +127,34 @@ class Logic:
             log.error(f"Error in {config}")
             raise
 
+
 def get_module(name:str)->ModuleType:
+    """
+    >>> type(get_module('x2.c3'))
+    <class 'module'>
+    >>> get_module('x2.c99')
+    Traceback (most recent call last):
+    ...
+    ModuleNotFoundError: No module named 'x2.c99'
+    """
     if name in sys.modules:
         return sys.modules[name]
     return __import__(name, fromlist=[""])
+
+
+def str_or_none(s:Any)->Optional[str]:
+    return str(s) if s is not None else None
+
+
+class JsonBase(BaseModel):
+
+    @classmethod
+    def from_json(cls, json_str):
+        return cls.model_validate_json(json_str)
+    
+    @classmethod
+    def from_base64(cls, base64_str):
+        return cls.from_json(base64.b64decode(base64_str).decode())
+    
+    def to_base64(self)->bytes:
+        return base64.b64encode(self.model_dump_json().encode('utf8'))

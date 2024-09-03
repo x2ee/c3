@@ -34,7 +34,9 @@ Inspect [coverage](htmlcov/index.html).
 
 ## Apps
 
-Apps shares responsibilities and communicate with each other via http. 
+Apps shares responsibilities and communicate with each other via http.
+
+
 Initially no authorization will be done but services will work on localhost only. Auth tokens have to be employed when. 
 
 ### AnyApp

@@ -4,7 +4,6 @@ import pytest
 
 from x2.c3.periodic import Interval
 
-@pytest.mark.debug
 def test_cache_params():
     false_null = '{"force":false,"interval":null}'
     true_2w = '{"force":true,"interval":"2W"}'
@@ -42,7 +41,7 @@ def test_cache_params():
             '"interval": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": null, "title": "time interval for cache expiration"}}, '
         '"title": "Cache expiration parameters", "type": "object"}'
     )
-    actual = json.dumps(e.CacheParams.model_json_schema())
+    actual = e.CacheParams.dump_schema()
     print(actual)
     assert actual == schema
     # assert False

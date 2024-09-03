@@ -9,7 +9,7 @@ from enum import Enum
 from pathlib import Path
 import sqlite3, time
 from contextlib import contextmanager
-from typing import Any, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Union, cast
 from copy import copy
 
 import pandas as pd
@@ -118,8 +118,8 @@ class SQLiteTypes(Enum):
     BLOB = ( ("blob",), bytes)
 
     @classmethod
-    def from_known_type(cls, known_type:Union[KnownType, str]):
-        return cls._value2member_map_[known_type if isinstance(known_type, str) else known_type.name]
+    def from_known_type(cls, known_type:Union[KnownType, str])->"SQLiteTypes":
+        return cast(SQLiteTypes, cls._value2member_map_[known_type if isinstance(known_type, str) else known_type.name])
 
 
 class SQLiteTable:
@@ -148,7 +148,12 @@ class SQLiteTable:
         self._insert_sql = f"insert into {self.name} ({all_cols}) values ({placeholders})"
 
     def create_table_sql(self):
-        all_defs = ", ".join(f"{k.name} {SQLiteTypes.from_known_type(k.type).name}" for k in self.table.fields.values())
+        def field_ddl(f:ArgField)->str:
+            s = f"{f.name} {SQLiteTypes.from_known_type(f.type).name}"
+            if f.default is not None and f.default.default is not None:
+                s += f" DEFAULT {f.default.default!r}"
+            return s
+        all_defs = ", ".join( map(field_ddl, self.table.fields.values()) )
         if_pkeys = f", primary key ({self.pkeys})" if self.pkeys else ""
         return f"create table {self.table.name} ({all_defs}{if_pkeys})"
 

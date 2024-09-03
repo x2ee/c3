@@ -8,23 +8,14 @@ import tornado
 from tornado.httpclient import AsyncHTTPClient
 import signal
 import multiprocessing as mp
-import random
 import time
 import logging
 
 from x2.c3.periodic import PeriodicTask, run_all
+from x2.c3.wep import random_port
 log = logging.getLogger(__name__)
 
 
-random.seed(time.time())
-
-def random_port():
-    """Return a random port number between 1024 and 65535 but give 
-    higher probability port numbers above 49152 to avoid reserved ports.
-    """
-    if random.randint(1,3) == 3:
-        return random.randint(1024, 65535)
-    return random.randint(49152, 65535)
 
 
 async def get_status(port, host="localhost"):

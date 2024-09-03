@@ -1,5 +1,5 @@
 from threading import Thread
-from x2.c3.types import ArgField, Table
+from x2.c3.types import ArgField, HasDefault, Table
 from x2.c3.db import SQLiteDbMap, SQLiteTable
 import time, random, base64, pathlib
 import pytest
@@ -16,13 +16,26 @@ class IThread(Thread):
     def __bool__(self):
         return self.succeeded
 
+def do_test_json_roundtrip(t: Table):
+    t2 = Table.from_dict(t.to_dict())
+    assert repr(t) == repr(t2)
+
+@pytest.mark.debug
 def test_sqlite_table():
     table = SQLiteTable(Table("test", [ArgField("id", "int"), ArgField("name", "str")]))
+    do_test_json_roundtrip(table.table)
     assert table.create_table_sql() == 'create table test (id INTEGER, name TEXT)'
     table = SQLiteTable(Table("test", [ArgField("id", "int",is_key=True), ArgField("name", "str")]))
+    do_test_json_roundtrip(table.table)
     assert (
         table.create_table_sql()
         == "create table test (id INTEGER, name TEXT, primary key (id))"
+    )
+    table = SQLiteTable(Table("test", [ArgField("id", "int",is_key=True), ArgField("name", "str", default=HasDefault("xxx"))]))
+    do_test_json_roundtrip(table.table)
+    assert (
+        table.create_table_sql()
+        == "create table test (id INTEGER, name TEXT DEFAULT 'xxx', primary key (id))"
     )
 
 @pytest.mark.slow

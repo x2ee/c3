@@ -1,5 +1,6 @@
 import base64
 from inspect import isclass, isfunction, ismodule, iscoroutinefunction
+import json
 import sys
 from types import ModuleType
 from typing import Any, Dict, Optional, Union
@@ -147,6 +148,9 @@ def str_or_none(s:Any)->Optional[str]:
 
 
 class JsonBase(BaseModel):
+    @classmethod
+    def dump_schema(cls)->str:
+        return json.dumps(cls.model_json_schema())
 
     @classmethod
     def from_json(cls, json_str):

@@ -315,5 +315,8 @@ class Table:
         self.name = name
         self.fields = fields if isinstance(fields, dict) else ArgField.build_field_dict(fields)
 
+    def to_dict(self) -> Dict[str, Any]:
+        return { "name" : self.name, "fields": [f.to_dict() for f in self.fields.values()] }
+
     def __repr__(self):
         return f"Table({self.name!r}, {self.fields!r})"

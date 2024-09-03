@@ -9,6 +9,7 @@ install_requires = [
     "pyarrow",
     "pydantic",
     "croniter",
+    "cryptography",
     "tornado"
 ]
 dev_requires = [

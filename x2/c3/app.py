@@ -2,7 +2,6 @@ from pathlib import Path
 import sys, time
 
 from typing import Any, Dict, Union
-from x2.c3 import Logic
 import x2.c3.ctx as ctx
 from x2.c3.db import SQLiteDbMap
 from x2.c3.dnode import DNodeTree, DataNode, DataPath

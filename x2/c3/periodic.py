@@ -28,6 +28,30 @@ def stamp_time() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def dt_to_bytes(dt: datetime):
+    """Convert datetime to bytes
+    >>> dt_to_bytes(datetime( 1900,1,1,0,0,0))
+    b'\\xff\\xff\\xfd\\xfd\\xaf\\xb9P\\x00'
+    >>> dt_to_bytes(datetime( 2000,1,1,0,0,0))
+    b'\\x00\\x00\\x00\\xdcl\\x87 \\x00'
+    """
+    mills = int(dt.timestamp() * 1000)
+    return mills.to_bytes(8, "big", signed=True)
+
+def dt_from_bytes(b: bytes):
+    """Convert datetime to bytes
+    >>> dt_from_bytes(b'\\xff\\xff\\xfd\\xfd\\xaf\\xb9P\\x00')
+    datetime.datetime(1900, 1, 1, 0, 0)
+    >>> dt_from_bytes(b'\\x00\\x00\\x00\\xdcl\\x87 \\x00')
+    datetime.datetime(2000, 1, 1, 0, 0)
+    """
+
+    mills = int.from_bytes(b, "big", signed=True)
+    return datetime.fromtimestamp(mills / 1000)
+
+DT_BYTES_LENGTH = len(dt_to_bytes(datetime.now()))
+
+
 class SimulatedTime:
     """
     >>> st = SimulatedTime()

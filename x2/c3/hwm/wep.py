@@ -13,7 +13,7 @@ from tornado.httpclient import AsyncHTTPClient
 
 from pydantic import Field
 
-from x2.c3.periodic import DT_BYTES_LENGTH, dt_from_bytes, dt_to_bytes
+from x2.c3.periodic import DT_BYTES_LENGTH, dt_from_bytes, dt_to_bytes, stamp_time
 from x2.c3 import JsonBase
 from x2.c3.hwm.session import WorkerSessionPubKey
 from x2.c3.hwm import MAX_PORT
@@ -138,7 +138,7 @@ class WorkOrder(JsonBase):
     Host command to be executed by the worker.
     """
     command: WorkOrderCommand
-    timestamp: datetime = Field(title="Timestamp of the work order", default_factory=datetime.now)
+    timestamp: datetime = Field(title="Timestamp of the work order", default_factory=stamp_time)
     payload: bytes = Field(title="Payload of the work order", default=b"")
 
     @staticmethod

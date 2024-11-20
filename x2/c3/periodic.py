@@ -19,6 +19,8 @@ from typing import Union
 
 
 YEAR_IN_DAYS = 365.256
+SECONDS_IN_DAY = 24 * 60 * 60
+
 
 EPOCH_ZERO = datetime(1970,1,1, tzinfo=timezone.utc)
 
@@ -29,33 +31,34 @@ def stamp_time() -> datetime:
     """
     return datetime.now(timezone.utc)
 
-def from_timestamp(timestamp)->datetime:
-    return datetime.fromtimestamp(timestamp, timezone.utc)
 
-
-def dt_to_bytes(dt: datetime):
+def dt_to_bytes(dt: datetime)->bytes:
     """Convert datetime to bytes
     >>> dt_to_bytes(datetime( 1900,1,1,0,0,0))
-    b'\\xff\\xff\\xfd\\xfd\\xae\\x01\\xdc\\x00'
+    b'\\xff\\xf8&\\xef\\xb7C`\\x00'
     >>> dt_to_bytes(datetime( 2000,1,1,0,0,0))
-    b'\\x00\\x00\\x00\\xdcj\\xcf\\xac\\x00'
+    b'\\x00\\x03]\\x01;7\\xe0\\x00'
     """
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    sec=(dt - EPOCH_ZERO).total_seconds()
-    mills = int(sec*1000)
-    return mills.to_bytes(8, "big", signed=True)
+    mics=total_microseconds(dt - EPOCH_ZERO)
+    return mics.to_bytes(8, "big", signed=True)
 
-def dt_from_bytes(b: bytes):
+def total_microseconds(d:timedelta) -> int:
+    return (d.days * SECONDS_IN_DAY + d.seconds) * 1_000_000 + d.microseconds
+
+
+def dt_from_bytes(b: bytes)->datetime:
     """Convert  bytes to datetime
-    >>> dt_from_bytes(b'\\xff\\xff\\xfd\\xfd\\xae\\x01\\xdc\\x00')
+    >>> dt_from_bytes(b'\\xff\\xf8&\\xef\\xb7C`\\x00')
     datetime.datetime(1900, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
-    >>> dt_from_bytes(b'\\x00\\x00\\x00\\xdcj\\xcf\\xac\\x00')
+    >>> dt_from_bytes(b'\\x00\\x03]\\x01;7\\xe0\\x00')
     datetime.datetime(2000, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
     """
-    mills = int.from_bytes(b, "big", signed=True)
-    sec =  mills / 1000
-    return EPOCH_ZERO + timedelta(seconds=sec)
+    mics = int.from_bytes(b, "big", signed=True)
+    return EPOCH_ZERO + timedelta(microseconds=mics)
+
+
 
 DT_BYTES_LENGTH = len(dt_to_bytes(stamp_time()))
 

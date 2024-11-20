@@ -1,8 +1,9 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 import time
 
 import pytest
-from x2.c3.periodic import PeriodicTask, run_all
+from x2.c3.periodic import EPOCH_ZERO, PeriodicTask, dt_to_bytes, run_all, dt_from_bytes
 
 @pytest.mark.slow
 def test_periodic():
@@ -103,4 +104,53 @@ def test_periodic():
         "(20, 'result', 'sync_fn_x_1', (<class 'ValueError'>, ValueError(1)))",
     )
     asyncio.run(run_all())
+    # assert False
+
+def test_max_values_for_datetime_serialized():
+    dt_max = datetime.max
+    dt_min = datetime.min
+    dt_max_utc = datetime.max.replace(tzinfo=timezone.utc)
+    dt_min_utc = datetime.min.replace(tzinfo=timezone.utc)
+
+    extremes = (
+        (dt_max_utc - EPOCH_ZERO).total_seconds(), 
+        (EPOCH_ZERO - dt_min_utc).total_seconds()
+    )
+    max_value_to_store = int(max(extremes)*1000000)
+    how_many_bytes = (max_value_to_store).bit_length() // 8 + 1
+    print(f"{how_many_bytes=}")
+    round_trip = lambda dt: dt_from_bytes(dt_to_bytes(dt))
+
+    def round_trip_n(n,dt,dt_expected,step):
+        h = f" {n=}\n"
+        s = ""
+        all = True
+        for i in range(n):
+            try: 
+                v = round_trip(dt) 
+                c = (v == dt_expected)
+            except OverflowError:
+                v,c = None, None
+            s += f"{(c, v, dt, dt_expected)}\n"
+            if not c:
+                all = False
+            dt = dt + timedelta(microseconds=step)
+            dt_expected = dt_expected + timedelta(microseconds=step)
+        return all, f" {n=} {all=}\n{s}"
+    
+    all, msg = round_trip_n(10, dt_max, dt_max_utc, -1)
+    assert all, msg
+    all, msg = round_trip_n(100, dt_max, dt_max_utc, -91)
+    assert all, msg
+    all, msg = round_trip_n(100, dt_max_utc, dt_max_utc, -791)
+    assert all, msg
+    all, msg = round_trip_n(10, dt_min, dt_min_utc, 1)
+    assert all, msg
+    all, msg = round_trip_n(100, dt_min, dt_min_utc, 91)
+    assert all, msg
+    all, msg = round_trip_n(100, dt_min_utc, dt_min_utc, 791)
+    assert all, msg
+
+    # print(f"{dt_max=} {round_trip_n(100, dt_max, dt_max_utc, -10)[1]}")
+    # print(f"{dt_min=} {round_trip_n(100, dt_min, dt_min_utc, 10)[1]}")
     # assert False

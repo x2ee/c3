@@ -4,30 +4,31 @@ from cryptography.exceptions import InvalidSignature
 
 from x2.c3.hwm import encode_base64, ensure_bytes
 
+PUBLIC_KEY_LENGTH = len(Ed25519PrivateKey.generate().public_key().public_bytes_raw())
 
-class WorkerSession:
+class EntitySession:
     private_key: Ed25519PrivateKey
-    host_pk: Optional["WorkerSessionPubKey"]
+    host_pk: Optional["EntityPubKey"]
 
-    def __init__(self, host_pk: Union[None,str,bytes,Ed25519PublicKey,"WorkerSessionPubKey"]=None) -> None:
+    def __init__(self, host_pk: Union[None,str,bytes,Ed25519PublicKey,"EntityPubKey"]=None) -> None:
         self.private_key = Ed25519PrivateKey.generate()
-        self.host_pk = WorkerSessionPubKey.ensure(host_pk)
+        self.host_pk = EntityPubKey.ensure(host_pk)
 
     def sign(self, data: Union[str,bytes]) -> bytes:
         return self.private_key.sign(ensure_bytes(data))
 
-    def public_key(self) -> "WorkerSessionPubKey":
-        return WorkerSessionPubKey(self.private_key.public_key())
+    def public_key(self) -> "EntityPubKey":
+        return EntityPubKey(self.private_key.public_key())
 
 
-class WorkerSessionPubKey:
+class EntityPubKey:
     public_key: Ed25519PublicKey
 
     @staticmethod
-    def ensure(input: Union[None, str, bytes, Ed25519PublicKey, "WorkerSessionPubKey"]) -> Optional["WorkerSessionPubKey"]:
-        if input is None or isinstance(input, WorkerSessionPubKey):
+    def ensure(input: Union[None, str, bytes, Ed25519PublicKey, "EntityPubKey"]) -> Optional["EntityPubKey"]:
+        if input is None or isinstance(input, EntityPubKey):
             return input
-        return WorkerSessionPubKey(input)
+        return EntityPubKey(input)
     
     def __init__(self, public_key: Union[str,bytes,Ed25519PublicKey]) -> None:
         if isinstance(public_key, Ed25519PublicKey):

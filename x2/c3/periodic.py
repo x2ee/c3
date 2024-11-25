@@ -24,6 +24,10 @@ SECONDS_IN_DAY = 24 * 60 * 60
 
 EPOCH_ZERO = datetime(1970,1,1, tzinfo=timezone.utc)
 
+def total_microseconds(d:timedelta) -> int:
+    return (d.days * SECONDS_IN_DAY + d.seconds) * 1_000_000 + d.microseconds
+
+
 def stamp_time() -> datetime:
     """return the current time in UTC
     >>> stamp_time().tzinfo
@@ -44,8 +48,6 @@ def dt_to_bytes(dt: datetime)->bytes:
     mics=total_microseconds(dt - EPOCH_ZERO)
     return mics.to_bytes(8, "big", signed=True)
 
-def total_microseconds(d:timedelta) -> int:
-    return (d.days * SECONDS_IN_DAY + d.seconds) * 1_000_000 + d.microseconds
 
 
 def dt_from_bytes(b: bytes)->datetime:

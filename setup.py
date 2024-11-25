@@ -7,6 +7,7 @@ install_requires = [
     "pandas",
     "numpy",
     "pyarrow",
+    "duckdb",
     "pydantic",
     "croniter",
     "cryptography",

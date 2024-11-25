@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 import asyncio
 from enum import Enum
+import inspect
 import random
 import time
 import json
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, cast
 import tornado
 from tornado.httpclient import AsyncHTTPClient
 import signal
@@ -27,6 +28,79 @@ async def get_status(port, host="localhost"):
     return json.loads(response.body)
 
 
+class AppService:
+    """Service that manages routes and periodic tasks for an app"""
+    
+    def __init__(self):
+        self._routes: List[Tuple[str, tornado.web.RequestHandler]] = []
+        self._periodic_tasks: List[PeriodicTask] = []
+        self._shutdown_handlers: List[Callable] = []
+        self._started = False
+        self._stopping = False
+
+    def add_route(self, pattern: str, handler: tornado.web.RequestHandler) -> None:
+        """Add a route pattern and handler"""
+        self._routes.append((pattern, handler))
+
+    def add_periodic(self, interval: int, fn: Callable) -> None:
+        """Add a periodic task that runs at the specified interval"""
+        task = PeriodicTask(interval, fn)
+        self._periodic_tasks.append(task)
+
+    def get_routes(self) -> List[Tuple[str, tornado.web.RequestHandler]]:
+        """Get all registered routes"""
+        return self._routes
+
+    def get_periodic_tasks(self) -> List[PeriodicTask]:
+        """Get all registered periodic tasks"""
+        return self._periodic_tasks
+
+    def add_shutdown_handler(self, handler: Callable) -> None:
+        """Add a handler to be called during shutdown"""
+        self._shutdown_handlers.append(handler)
+
+    async def on_start(self) -> None:
+        """Start the service"""
+        if self._started:
+            return
+        self._started = True
+        self._stopping = False
+
+    async def on_stop(self) -> None:
+        """Stop the service and run shutdown handlers"""
+        if self._stopping or not self._started:
+            return
+        
+        self._stopping = True
+        
+        # Run shutdown handlers in reverse order
+        for handler in reversed(self._shutdown_handlers):
+            try:
+                if inspect.iscoroutinefunction(handler):
+                    await handler()
+                else:
+                    handler()
+            except Exception as e:
+                log.error(f"Error running shutdown handler: {e}")
+        
+        self._started = False
+        self._stopping = False
+
+    @property 
+    def is_running(self) -> bool:
+        """Check if service is currently running"""
+        return self._started and not self._stopping
+
+
+class EndpointService(AppService):
+    def __init__(self, host):
+        super().__init__()
+
+        class WorkerStatusHandler(tornado.web.RequestHandler):
+            def get(self):
+                self.write(json.dumps({"ok":True}))
+
+        self.add_route(r"/status", cast(tornado.web.RequestHandler,WorkerStatusHandler))
 
 
 
@@ -59,9 +133,6 @@ class MainHandler(tornado.web.RequestHandler):
         self.write("Hello, world")
 
 
-class WorkerStatusHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write(json.dumps({"ok":True}))
 
 
 class AppState:
@@ -112,11 +183,7 @@ class OrchestratorApp(AppState):
 
 class WorkerApp(AppState):
     def tornado_app(self):
-        return tornado.web.Application(
-            [
-                (r"/status", WorkerStatusHandler),
-            ]
-        )
+        return tornado.web.Application()
 
 APPS = {
     "orchestrator": OrchestratorApp,

@@ -15,7 +15,7 @@ from pydantic import Field
 
 from x2.c3.periodic import DT_BYTES_LENGTH, dt_from_bytes, dt_to_bytes, stamp_time
 from x2.c3 import JsonBase
-from x2.c3.hwm.session import WorkerSessionPubKey
+from x2.c3.hwm.session import EntityPubKey, PUBLIC_KEY_LENGTH
 from x2.c3.hwm import MAX_PORT
 
 
@@ -49,39 +49,67 @@ class ProcessId(JsonBase):
         title="Container ID. Expected to be provided on Docker/Pacman based host.", default=None
     )
 
-class WorkerId(JsonBase):
-    public_key: str
-    url: UrlHost
+class EntityId(JsonBase):
+    public_key: str = Field(title="Base64 encoded public key")
 
     @staticmethod
     def from_bytes(data: bytes):
-        pk_b = data[:32]
-        url_b = data[32:]
-        return WorkerId(public_key=b64encode(pk_b).decode(), url=UrlHost.from_bytes(url_b))
+        assert len(data) == PUBLIC_KEY_LENGTH
+        pk_b = data
+        return EntityId(public_key=b64encode(pk_b).decode())
 
-    @staticmethod
-    def from_str(data: str):
-        return WorkerId.from_bytes(b64decode(data))
+    @classmethod
+    def from_str(cls, data: str):
+        return cls.from_bytes(b64decode(data))
     
     def __bytes__(self):
         pk_b = b64decode(self.public_key)
-        assert len(pk_b) == 32
-        return pk_b + self.url.__bytes__()
+        assert len(pk_b) == PUBLIC_KEY_LENGTH
+        return pk_b
+
+    def get_pk(self) -> EntityPubKey:
+        return EntityPubKey(self.public_key)
     
     def __str__(self):
         return b64encode(self.__bytes__()).decode()
-    
-    def get_pk(self) -> WorkerSessionPubKey:
-        return WorkerSessionPubKey(self.public_key)
 
+
+class UserId(EntityId):
+    user_name: str = Field(title="User name")
+
+    @staticmethod
+    def from_bytes(data: bytes):
+        pk_b = data[:PUBLIC_KEY_LENGTH]
+        user_name_b = data[PUBLIC_KEY_LENGTH:]
+        return UserId(public_key=b64encode(pk_b).decode(), user_name=user_name_b.decode('utf-8'))
+
+    def __bytes__(self):
+        pk_b = super().__bytes__()
+        return pk_b + self.user_name.encode('utf-8')
+
+
+class EndpointId(EntityId):
+    url: UrlHost = Field(title="Endpoint (host:port) of the entity")
+
+    @staticmethod
+    def from_bytes(data: bytes):
+        pk_b = data[:PUBLIC_KEY_LENGTH]
+        url_b = data[PUBLIC_KEY_LENGTH:]
+        return EndpointId(public_key=b64encode(pk_b).decode(), url=UrlHost.from_bytes(url_b))
+
+    def __bytes__(self):
+        pk_b = super().__bytes__()
+        return pk_b + self.url.__bytes__()
+    
+    
 
 class Worker(JsonBase):
-    wid: WorkerId
+    e_id: EndpointId
     process_id: Optional[ProcessId]
     updated: datetime
     tags: List[str]
     host_signature: Optional[str] = Field(
-        title="`bytes(worker.wid)` signed by host. Populated only host after worker listed in directory", default=None
+        title="`bytes(worker.e_id)` signed by host. Populated only host after worker listed in directory", default=None
     )
 
 

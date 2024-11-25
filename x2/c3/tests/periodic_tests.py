@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import time
-
 import pytest
 from x2.c3.periodic import EPOCH_ZERO, PeriodicTask, dt_to_bytes, run_all, dt_from_bytes
 

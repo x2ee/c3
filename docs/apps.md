@@ -1,14 +1,13 @@
 # HostWorkerModel (HWM)
 
-Server App Built build out of services.
+Server App - built out of `AppService`s.
 
-Service contain things that necessary for it to function:
+`AppService` maintain its onw state and responsible declaring and handling its own :
+  * tornado routes and handlers
+  * scheduled tasks (PeriodicTask)
+  * states tables to maintain (SQLiteDbMap)
 
-* set of routes
-* set of scheduled tasks
-* set of databases it maintains
-
-WORKER/HOST init procedure:
+## WORKER/HOST init procedure :
 
    1. HOST sends `WorkerInitiationRequest` to newly started WORKER
       process in it's `stdin`
@@ -16,11 +15,15 @@ WORKER/HOST init procedure:
    3. HOST responds with `HostAcknowledge` to WORKER endpoint
    4. HOST monitor WORKER continuously thru /status/ API call
 
-## WorkerService
+Procedure should not be much different when ClusterLeader starts WorkerHost.
+
+## `EndpointService` basic lifecycle management for host and worker apps
+
+`EndpointService` is responsible for basic app functionality, reporting own status and handling lifecycle commands (like shutdown requests). EndpointService is used on both HOST and WORKER.
 
 Routes:
   * GET `/status/`
-    * state of worker INIT/READY/PENDING_SHUTDOWN/DOWN
+    * state of app INIT/READY/PENDING_SHUTDOWN/DOWN
     * public key - app public key. Used to sign messages from app to authenticate them. Key is generated when app starts
     * host signature. HostApp sign public key of the app immediately after start as acknowledgement that App was started by host and can be trusted in cluster
     * other services status info like:

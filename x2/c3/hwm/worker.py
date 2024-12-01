@@ -6,7 +6,7 @@ import inspect
 import random
 import time
 import json
-from typing import Any, Callable, Dict, List, Tuple, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 import tornado
 from tornado.httpclient import AsyncHTTPClient
 import signal
@@ -15,6 +15,7 @@ import time
 import logging
 
 from x2.c3.hwm import random_port
+from x2.c3.hwm.wep import WorkerInitiationRequest
 from x2.c3.periodic import PeriodicTask, run_all
 
 log = logging.getLogger(__name__)
@@ -32,13 +33,13 @@ class AppService:
     """Service that manages routes and periodic tasks for an app"""
     
     def __init__(self):
-        self._routes: List[Tuple[str, tornado.web.RequestHandler]] = []
+        self._routes: List[Tuple[str, type[tornado.web.RequestHandler]]] = []
         self._periodic_tasks: List[PeriodicTask] = []
         self._shutdown_handlers: List[Callable] = []
         self._started = False
         self._stopping = False
 
-    def add_route(self, pattern: str, handler: tornado.web.RequestHandler) -> None:
+    def add_route(self, pattern: str, handler:type[tornado.web.RequestHandler]) -> None:
         """Add a route pattern and handler"""
         self._routes.append((pattern, handler))
 
@@ -47,7 +48,7 @@ class AppService:
         task = PeriodicTask(interval, fn)
         self._periodic_tasks.append(task)
 
-    def get_routes(self) -> List[Tuple[str, tornado.web.RequestHandler]]:
+    def get_routes(self) -> List[Tuple[str, type[tornado.web.RequestHandler]]]:
         """Get all registered routes"""
         return self._routes
 
@@ -93,15 +94,54 @@ class AppService:
 
 
 class EndpointService(AppService):
-    def __init__(self, host):
+    def __init__(self, init_req:WorkerInitiationRequest):
         super().__init__()
 
         class WorkerStatusHandler(tornado.web.RequestHandler):
             def get(self):
                 self.write(json.dumps({"ok":True}))
 
-        self.add_route(r"/status", cast(tornado.web.RequestHandler,WorkerStatusHandler))
+        self.add_route(r"/status", WorkerStatusHandler)
 
+
+class AppState:
+    name:str 
+
+    def __init__(self, name, *app_services:AppService):
+        self.name = name
+        self.app_services = app_services
+
+    def tornado_app(self) -> tornado.web.Application:
+        routes = []
+        for service in self.app_services:
+            routes.extend(service.get_routes())
+        return tornado.web.Application(cast(tornado.routing._RuleList,routes))
+
+    def periodic_tasks(self)->List[PeriodicTask]:
+        """ Return a list of tuples where the first element is the frequency in seconds 
+        and the second element is the function to call.
+        """
+        tasks = []
+        for service in self.app_services:
+            tasks.extend(service.get_periodic_tasks())
+        return tasks
+
+
+    async def start_app(self, port:int, shutdown_event:Optional[asyncio.Event] = None):
+        app = self.tornado_app()
+        app.listen(port)
+        if shutdown_event is None:
+            shutdown_event = asyncio.Event()
+
+        def shutdown():
+            log.info(f"Stopping {self.name}!")
+            shutdown_event.set()
+
+        loop = asyncio.get_event_loop()
+        loop.add_signal_handler(signal.SIGINT, shutdown)
+        loop.add_signal_handler(signal.SIGTERM, shutdown)
+        asyncio.create_task(run_all(*self.periodic_tasks()))
+        await shutdown_event.wait()
 
 
 class _C3Mount(tornado.web.RequestHandler):
@@ -131,46 +171,6 @@ class _ContentHandler(tornado.web.RequestHandler):
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.write("Hello, world")
-
-
-
-
-class AppState:
-    name:str 
-
-    def __init__(self, name):
-        self.name = name
-        self._init_some_more()
-
-    def _init_some_more(self):
-        pass
-
-    def tornado_app(self) -> tornado.web.Application:
-        raise NotImplementedError
-
-    def periodic_tasks(self)->List[Tuple[int, Callable[[], Any]]]:
-        """ Return a list of tuples where the first element is the frequency in seconds 
-        and the second element is the function to call.
-        """
-        return []
-
-
-    async def start_app(self, port, shutdown_event = None):
-        app = self.tornado_app()
-        app.listen(port)
-        if shutdown_event is None:
-            shutdown_event = asyncio.Event()
-
-        def shutdown():
-            log.info(f"Stopping {self.name}!")
-            shutdown_event.set()
-
-        loop = asyncio.get_event_loop()
-        loop.add_signal_handler(signal.SIGINT, shutdown)
-        loop.add_signal_handler(signal.SIGTERM, shutdown)
-        asyncio.create_task(run_all(*[PeriodicTask(*v) for v in self.periodic_tasks()]))
-        await shutdown_event.wait()
-
 
 class OrchestratorApp(AppState):
     def tornado_app(self):

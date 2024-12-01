@@ -9,8 +9,7 @@ Server App - built out of `AppService`s.
 
 ## WORKER/HOST init procedure :
 
-   1. HOST sends `WorkerInitiationRequest` to newly started WORKER
-      process in it's `stdin`
+   1. HOST sends `WorkerInitiationRequest` to newly started WORKER process in the `stdin`
    2. WORKER responds with `WorkerBindResponse` to HOST endpoint
    3. HOST responds with `HostAcknowledge` to WORKER endpoint
    4. HOST monitor WORKER continuously thru /status/ API call

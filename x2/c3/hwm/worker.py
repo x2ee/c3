@@ -6,7 +6,7 @@ import inspect
 import random
 import time
 import json
-from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast, Type
 import tornado
 from tornado.httpclient import AsyncHTTPClient
 import signal
@@ -33,13 +33,13 @@ class AppService:
     """Service that manages routes and periodic tasks for an app"""
     
     def __init__(self):
-        self._routes: List[Tuple[str, type[tornado.web.RequestHandler]]] = []
+        self._routes: List[Tuple[str, Type[tornado.web.RequestHandler]]] = []
         self._periodic_tasks: List[PeriodicTask] = []
         self._shutdown_handlers: List[Callable] = []
         self._started = False
         self._stopping = False
 
-    def add_route(self, pattern: str, handler:type[tornado.web.RequestHandler]) -> None:
+    def add_route(self, pattern: str, handler:Type[tornado.web.RequestHandler]) -> None:
         """Add a route pattern and handler"""
         self._routes.append((pattern, handler))
 
@@ -48,7 +48,7 @@ class AppService:
         task = PeriodicTask(interval, fn)
         self._periodic_tasks.append(task)
 
-    def get_routes(self) -> List[Tuple[str, type[tornado.web.RequestHandler]]]:
+    def get_routes(self) -> List[Tuple[str, Type[tornado.web.RequestHandler]]]:
         """Get all registered routes"""
         return self._routes
 

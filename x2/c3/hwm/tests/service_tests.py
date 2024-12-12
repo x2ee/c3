@@ -1,12 +1,10 @@
 import asyncio
 import json
 import logging
-import random
-import time
 from typing import Callable
 import pytest
 import tornado
-from x2.c3.hwm.service import App, AppService, AppState, PortSeekStrategy, get_json
+from x2.c3.hwm.service import App, AppService, AppState, PortSeekStrategy, get_json, BIND_ERRNO
 
 
 class OkService(AppService):
@@ -104,7 +102,7 @@ async def test_conflict(caplog):
         await app.run()
         assert False
     except OSError as e:
-        assert e.errno == 48
+        assert e.errno == BIND_ERRNO
 
 @pytest.mark.asyncio
 async def test_sequential(caplog):

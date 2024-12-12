@@ -1,8 +1,9 @@
 from enum import Enum
 import signal
-import inspect
+import platform
 import logging
 import signal
+from types import FrameType
 from typing import Generator, List, Optional, Tuple, Type, Callable, cast
 import tornado.web
 from x2.c3.hwm import random_port
@@ -50,8 +51,6 @@ class AppService:
     def on_stop(self) -> None:
         """Stop the service"""
         pass
-
-
     
     def __repr__(self):
         return f"AppService(routes={self._routes}, periodic_tasks={self._periodic_tasks})"
@@ -76,7 +75,34 @@ class PortSeekStrategy(Enum):
         elif self == PortSeekStrategy.SEQUENTIAL:
             return port + 1
         return None
-        
+
+
+def get_bind_errno() -> int:
+    """
+    Returns the platform-specific errno for 'Address already in use' error
+
+    MacOS: OSError: [Errno 48] Address already in use
+    Linux: OSError: [Errno 98] Address already in use
+    Windows:OSError: [WinError 10048] Only one usage of each socket address 
+                      (protocol/network address/port) is normally permitted
+    
+    Returns:
+        int: errno value for the current platform
+            - 48 on MacOS
+            - 98 on Linux  
+            - 10048 on Windows
+    """
+    system = platform.system().lower()
+    if system == 'darwin':  # MacOS
+        return 48
+    elif system == 'linux':
+        return 98
+    elif system == 'windows':
+        return 10048
+    else:
+        return 98  # Default to Linux errno as fallback
+
+BIND_ERRNO = get_bind_errno()
 
 class AppState:
     app_services:List[AppService]
@@ -109,14 +135,8 @@ class AppState:
                 app.listen(self.port)
                 return
             except OSError as e:
-                # MacOS:
-                # OSError: [Errno 48] Address already in use
-                # Linux:
-                # OSError: [Errno 98] Address already in use
-                # Windows:
-                # OSError: [Errno 10013] An attempt was made to access a socket in a way forbidden by its access permissions
-                # Try a different port
-                if self.port_seek == PortSeekStrategy.BAILOUT or e.errno not in (48, 98, 10013):
+
+                if self.port_seek == PortSeekStrategy.BAILOUT or e.errno != BIND_ERRNO:
                     log.error(f"Failed to listen on port {self.port}: {e}")
                     raise e
                 else:
@@ -179,6 +199,11 @@ class App:
         log.info(f"Stopping {self.name}!")
         self.shutdown_event.set()
 
+    def signal_handler(self, signum: int, frame: Optional[FrameType]) -> None:
+        """Handle shutdown signals"""
+        self.shutdown()
+
+
     
     async def run(self, max_attempts_to_listen=10):
         assert not self._started
@@ -192,8 +217,8 @@ class App:
         self.on_start()
         try:
             loop = asyncio.get_event_loop()
-            signal.signal(signal.SIGINT, self.shutdown)
-            signal.signal(signal.SIGTERM, self.shutdown)
+            signal.signal(signal.SIGINT, self.signal_handler)
+            signal.signal(signal.SIGTERM, self.signal_handler)
             tasks = self.periodic_tasks()
             if len(tasks):
                 asyncio.create_task(run_all(*tasks, shutdown_event=self.shutdown_event))

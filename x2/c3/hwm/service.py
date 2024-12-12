@@ -116,7 +116,7 @@ class AppState:
                 # Windows:
                 # OSError: [Errno 10013] An attempt was made to access a socket in a way forbidden by its access permissions
                 # Try a different port
-                if self.port_seek == PortSeekStrategy.BAILOUT or e.errno != 48:
+                if self.port_seek == PortSeekStrategy.BAILOUT or e.errno not in (48, 98, 10013):
                     log.error(f"Failed to listen on port {self.port}: {e}")
                     raise e
                 else:

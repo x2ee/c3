@@ -23,6 +23,7 @@ dev_requires = [
     "isort",
     "pytest<=8.0.0",
     "pytest-mypy",
+    "pytest-asyncio",
     "pytest-cov",
 ]
 

@@ -329,7 +329,8 @@ async def run_all(*tasks: PeriodicTask, shutdown_event=None, collect_results:Cal
         return
     tick = gcd(*[t.freq for t in tasks])
     loop = asyncio.get_running_loop()
-    while shutdown_event.is_set() is False:
+
+    while True:
         start = stime.time()
         for t in tasks:
             if t.is_due():
@@ -343,6 +344,8 @@ async def run_all(*tasks: PeriodicTask, shutdown_event=None, collect_results:Cal
                 except :
                     r = sys.exc_info()
                 collect_results(t.logic.__name__, r)
+            if shutdown_event.is_set():
+                return
         elapsed = stime.time() - start
         await asyncio.sleep(tick - elapsed if elapsed < tick else 0)
 

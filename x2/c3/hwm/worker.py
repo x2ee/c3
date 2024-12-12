@@ -1,5 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import multiprocessing as mp
+import time
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, cast
+
+import tornado
+import tornado.web
+from tornado.httpclient import AsyncHTTPClient
+
+from x2.c3.hwm import random_port
+from x2.c3.hwm.service import AppService, AppState, get_json
+from x2.c3.hwm.wep import WorkerInitiationRequest
+
+
+
 import asyncio
 from enum import Enum
 import inspect
@@ -25,72 +45,8 @@ log = logging.getLogger(__name__)
 async def get_status(port, host="localhost"):
     """Fetch status json from worker."""
     url = f"http://{host}:{port}/status"
-    response = await AsyncHTTPClient().fetch(url)
-    return json.loads(response.body)
+    return await get_json(url)
 
-
-class AppService:
-    """Service that manages routes and periodic tasks for an app"""
-    
-    def __init__(self):
-        self._routes: List[Tuple[str, Type[tornado.web.RequestHandler]]] = []
-        self._periodic_tasks: List[PeriodicTask] = []
-        self._shutdown_handlers: List[Callable] = []
-        self._started = False
-        self._stopping = False
-
-    def add_route(self, pattern: str, handler:Type[tornado.web.RequestHandler]) -> None:
-        """Add a route pattern and handler"""
-        self._routes.append((pattern, handler))
-
-    def add_periodic(self, interval: int, fn: Callable) -> None:
-        """Add a periodic task that runs at the specified interval"""
-        task = PeriodicTask(interval, fn)
-        self._periodic_tasks.append(task)
-
-    def get_routes(self) -> List[Tuple[str, Type[tornado.web.RequestHandler]]]:
-        """Get all registered routes"""
-        return self._routes
-
-    def get_periodic_tasks(self) -> List[PeriodicTask]:
-        """Get all registered periodic tasks"""
-        return self._periodic_tasks
-
-    def add_shutdown_handler(self, handler: Callable) -> None:
-        """Add a handler to be called during shutdown"""
-        self._shutdown_handlers.append(handler)
-
-    async def on_start(self) -> None:
-        """Start the service"""
-        if self._started:
-            return
-        self._started = True
-        self._stopping = False
-
-    async def on_stop(self) -> None:
-        """Stop the service and run shutdown handlers"""
-        if self._stopping or not self._started:
-            return
-        
-        self._stopping = True
-        
-        # Run shutdown handlers in reverse order
-        for handler in reversed(self._shutdown_handlers):
-            try:
-                if inspect.iscoroutinefunction(handler):
-                    await handler()
-                else:
-                    handler()
-            except Exception as e:
-                log.error(f"Error running shutdown handler: {e}")
-        
-        self._started = False
-        self._stopping = False
-
-    @property 
-    def is_running(self) -> bool:
-        """Check if service is currently running"""
-        return self._started and not self._stopping
 
 
 class EndpointService(AppService):
@@ -104,44 +60,6 @@ class EndpointService(AppService):
         self.add_route(r"/status", WorkerStatusHandler)
 
 
-class AppState:
-    name:str 
-
-    def __init__(self, name, *app_services:AppService):
-        self.name = name
-        self.app_services = app_services
-
-    def tornado_app(self) -> tornado.web.Application:
-        routes = []
-        for service in self.app_services:
-            routes.extend(service.get_routes())
-        return tornado.web.Application(cast(tornado.routing._RuleList,routes))
-
-    def periodic_tasks(self)->List[PeriodicTask]:
-        """ Return a list of tuples where the first element is the frequency in seconds 
-        and the second element is the function to call.
-        """
-        tasks = []
-        for service in self.app_services:
-            tasks.extend(service.get_periodic_tasks())
-        return tasks
-
-
-    async def start_app(self, port:int, shutdown_event:Optional[asyncio.Event] = None):
-        app = self.tornado_app()
-        app.listen(port)
-        if shutdown_event is None:
-            shutdown_event = asyncio.Event()
-
-        def shutdown():
-            log.info(f"Stopping {self.name}!")
-            shutdown_event.set()
-
-        loop = asyncio.get_event_loop()
-        loop.add_signal_handler(signal.SIGINT, shutdown)
-        loop.add_signal_handler(signal.SIGTERM, shutdown)
-        asyncio.create_task(run_all(*self.periodic_tasks()))
-        await shutdown_event.wait()
 
 
 class _C3Mount(tornado.web.RequestHandler):
@@ -185,10 +103,6 @@ class WorkerApp(AppState):
     def tornado_app(self):
         return tornado.web.Application()
 
-APPS = {
-    "orchestrator": OrchestratorApp,
-    "worker": WorkerApp,
-}
 
 class WorkerStatus(Enum):
     STARTED = 1
@@ -200,7 +114,7 @@ class WorkerStatus(Enum):
 class Worker:
     def __init__(self):
         self.port = random_port()
-        self.process = mp.Process(target=run_app, args=("worker", self.port))
+        self.process = mp.Process(args=("worker", self.port))
         self.process.start()
         print(f"Worker started on port {self.port}")
         self.state = WorkerStatus.STARTED
@@ -251,11 +165,3 @@ class WorkerPool:
         # worker.terminate()
 
 
-def run_app(app_name, port):
-    log.info(f"Starting {app_name}")
-    app = APPS[app_name](app_name)
-    asyncio.run(app.start_app(port))
-    log.info(f"Finished {app_name}")
-
-if __name__ == "__main__":
-    run_app("orchestrator", 7532)

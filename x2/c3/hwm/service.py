@@ -77,7 +77,7 @@ class PortSeekStrategy(Enum):
         return None
 
 
-def get_bind_errno() -> int:
+def _get_bind_errno() -> int:
     """
     Returns the platform-specific errno for 'Address already in use' error
 
@@ -102,7 +102,7 @@ def get_bind_errno() -> int:
     else:
         return 98  # Default to Linux errno as fallback
 
-BIND_ERRNO = get_bind_errno()
+BIND_ERRNO = _get_bind_errno()
 
 class AppState:
     app_services:List[AppService]

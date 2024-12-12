@@ -1,4 +1,5 @@
 from enum import Enum
+import signal
 import inspect
 import logging
 import signal
@@ -108,7 +109,12 @@ class AppState:
                 app.listen(self.port)
                 return
             except OSError as e:
+                # MacOS:
                 # OSError: [Errno 48] Address already in use
+                # Linux:
+                # OSError: [Errno 98] Address already in use
+                # Windows:
+                # OSError: [Errno 10013] An attempt was made to access a socket in a way forbidden by its access permissions
                 # Try a different port
                 if self.port_seek == PortSeekStrategy.BAILOUT or e.errno != 48:
                     log.error(f"Failed to listen on port {self.port}: {e}")
@@ -186,8 +192,8 @@ class App:
         self.on_start()
         try:
             loop = asyncio.get_event_loop()
-            loop.add_signal_handler(signal.SIGINT, self.shutdown)
-            loop.add_signal_handler(signal.SIGTERM, self.shutdown)
+            signal.signal(signal.SIGINT, self.shutdown)
+            signal.signal(signal.SIGTERM, self.shutdown)
             tasks = self.periodic_tasks()
             if len(tasks):
                 asyncio.create_task(run_all(*tasks, shutdown_event=self.shutdown_event))

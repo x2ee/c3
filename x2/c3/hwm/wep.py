@@ -13,6 +13,7 @@ from tornado.httpclient import AsyncHTTPClient
 
 from pydantic import Field
 
+from x2.c3.hwm.service import get_json
 from x2.c3.periodic import DT_BYTES_LENGTH, dt_from_bytes, dt_to_bytes, stamp_time
 from x2.c3 import JsonBase
 from x2.c3.hwm.session import EntityPubKey, PUBLIC_KEY_LENGTH
@@ -37,8 +38,7 @@ class UrlHost(JsonBase):
     async def fetch_json(self, path):
         """Fetch json from path."""
         url = f"http://{self.hostname}:{self.port}/{path}"
-        response = await AsyncHTTPClient().fetch(url)
-        return json.loads(response.body)
+        return await get_json(url)
 
 
 class ProcessId(JsonBase):

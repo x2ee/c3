@@ -22,8 +22,6 @@ from x2.c3.hwm.wep import WorkerInitiationRequest
 
 import asyncio
 from enum import Enum
-import inspect
-import random
 import time
 import json
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast, Type
@@ -47,6 +45,10 @@ async def get_status(port, host="localhost"):
     url = f"http://{host}:{port}/status"
     return await get_json(url)
 
+
+class WorkOrderService(AppService):
+    def __init__(self):
+        super().__init__()
 
 
 class EndpointService(AppService):

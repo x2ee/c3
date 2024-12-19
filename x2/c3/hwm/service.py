@@ -26,6 +26,8 @@ class AppService:
     def __init__(self):
         self._routes: List[Tuple[str, Type[tornado.web.RequestHandler]]] = []
         self._periodic_tasks: List[PeriodicTask] = []
+        self.app_state:AppState = None
+        self.app:App = None
 
     def add_route(self, pattern: str, handler:Type[tornado.web.RequestHandler]) -> None:
         """Add a route pattern and handler"""
@@ -83,7 +85,7 @@ def _get_bind_errno() -> int:
 
     MacOS: OSError: [Errno 48] Address already in use
     Linux: OSError: [Errno 98] Address already in use
-    Windows:OSError: [WinError 10048] Only one usage of each socket address 
+    Windows: OSError: [WinError 10048] Only one usage of each socket address 
                       (protocol/network address/port) is normally permitted
     
     Returns:
@@ -91,26 +93,27 @@ def _get_bind_errno() -> int:
             - 48 on MacOS
             - 98 on Linux  
             - 10048 on Windows
+        Use linux errno as fallback
     """
+    errnos = {
+        'darwin': 48,
+        'linux': 98,
+        'windows': 10048
+    }
     system = platform.system().lower()
-    if system == 'darwin':  # MacOS
-        return 48
-    elif system == 'linux':
-        return 98
-    elif system == 'windows':
-        return 10048
-    else:
-        return 98  # Default to Linux errno as fallback
-
+    return errnos.get(system, errnos['linux'])
+ 
 BIND_ERRNO = _get_bind_errno()
 
 class AppState:
     app_services:List[AppService]
+    app:"App"
 
     def __init__(self, *app_services:AppService, port:Optional[int] = None, port_seek:Optional[PortSeekStrategy] = None):
         self.app_services = list(app_services)
         self.port = port
         self.port_seek = port_seek if port_seek is not None else ( PortSeekStrategy.RANDOM if port is None else PortSeekStrategy.SEQUENTIAL)
+        self.app = None
 
 
     def tornado_app(self) -> tornado.web.Application:
@@ -145,6 +148,8 @@ class AppState:
     
     def on_start(self):
         for service in self.app_services:
+            service.app_state = self
+            service.app = self.app
             service.on_start()
 
     def on_stop(self):
@@ -163,7 +168,6 @@ class App:
         self._started = False
         self._stopping: Optional[bool] = None
 
-
     def periodic_tasks(self)->List[PeriodicTask]:
         """ Return a list of tuples where the first element is the frequency in seconds 
         and the second element is the function to call.
@@ -178,6 +182,7 @@ class App:
             return
         self._started = True
         for app_state in self.app_states:
+            app_state.app = self
             app_state.on_start()
 
     def on_stop(self):
@@ -194,14 +199,10 @@ class App:
         """Check if app is currently running"""
         return self._started and not self._stopping
 
-
-    def shutdown(self):
+    def shutdown(self, *args, **kwargs):
         log.info(f"Stopping {self.name}!")
         self.shutdown_event.set()
 
-    def signal_handler(self, signum: int, frame: Optional[FrameType]) -> None:
-        """Handle shutdown signals"""
-        self.shutdown()
 
 
     
@@ -217,8 +218,8 @@ class App:
         self.on_start()
         try:
             loop = asyncio.get_event_loop()
-            signal.signal(signal.SIGINT, self.signal_handler)
-            signal.signal(signal.SIGTERM, self.signal_handler)
+            signal.signal(signal.SIGINT, self.shutdown)
+            signal.signal(signal.SIGTERM, self.shutdown)
             tasks = self.periodic_tasks()
             if len(tasks):
                 asyncio.create_task(run_all(*tasks, shutdown_event=self.shutdown_event))
